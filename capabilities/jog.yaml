@@ -1,0 +1,10 @@
+id: clevercenter17261.jog
+version: 1
+status: proposed
+name: jog
+ephemeral: false
+attributes: {}
+commands:
+  push:
+    name: push
+    arguments: []

@@ -1,0 +1,10 @@
+id: clevercenter17261.calibrate
+version: 1
+status: proposed
+name: calibrate
+ephemeral: false
+attributes: {}
+commands:
+  push:
+    name: push
+    arguments: []

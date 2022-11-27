@@ -1,0 +1,5 @@
+name: 'HD PowerView Shade Gen 1 & 2'
+packageKey: 'HDPowerViewShade'
+permissions:
+  lan: {}
+  discovery: {}
