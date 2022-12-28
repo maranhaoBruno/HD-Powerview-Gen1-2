@@ -1,0 +1,15 @@
+dashboard:
+  states: []
+  actions: []
+  basicPlus: []
+detailView:
+  - label: "Jog"
+    displayType: pushButton
+    pushButton:
+      command: push
+    state: null
+automation:
+  conditions: []
+  actions: []
+id: clevercenter17261.jog
+version: 1
