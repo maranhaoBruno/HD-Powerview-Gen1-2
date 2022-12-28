@@ -1,0 +1,15 @@
+dashboard:
+  states: []
+  actions: []
+  basicPlus: []
+detailView:
+  - label: "Calibrate"
+    displayType: pushButton
+    pushButton:
+      command: push
+    state: null
+automation:
+  conditions: []
+  actions: []
+id: clevercenter17261.calibrate
+version: 1
