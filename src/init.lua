@@ -23,16 +23,16 @@ local capabilities = require "st.capabilities"
 local Driver = require "st.driver"
 local cosock = require "cosock"                 -- just for time
 local socket = require "cosock.socket"          -- just for time
-local json  = require "json"
-local http  = require "socket.http"
+local json  = require "st.json"
+local cosock = require 'cosock'
+local http  = cosock.asyncify 'socket.http' -- require "socket.http"
 local ltn12 = require "ltn12"
 local log = require "log"
 
 -- Custom Capabiities
-local capdefs = require "capabilitydefs"
-capabilities["partyvoice23922.createanother"] = cap_createdev
-capabilities["clevercenter17261.calibrate"] = cap_calibrate
-capabilities["clevercenter17261.jog"] = cap_jog
+local cap_createdev = capabilities["partyvoice23922.createanother"]
+local cap_calibrate = capabilities["clevercenter17261.calibrate"]
+local cap_jog = capabilities["clevercenter17261.jog"]
 
 -- Module variables
 local thisDriver = {}
@@ -56,18 +56,46 @@ function sendCommand(hubIP, shadeID, payload)
     }
 end
 
-local function jog() -- the function activated by a momentary button in the shade device titled "Jog"
+function updatePosition(device)
+  local request_body = {}
+  local response_body = {}
+
+  local url = "http://" .. device.preferences.hubIP .. "/api/shades/" .. device.preferences.shadeID .. "?refresh=true"
+  local res, code, response_headers = http.request{
+    url = url,
+    method = "GET",
+    headers =
+    {
+      ["Content-Type"] = "application/json";
+      ["Content-Length"] = #request_body;
+    },
+      --source = ltn12.source.string(request_body),
+      sink = ltn12.sink.table(response_body),
+    }
+    local shadeLevel = math.floor(tonumber(string.match(string.match(response_body[1], '"position1":%d+'),"%d+$"))/65535*100)
+    device:emit_event(capabilities.windowShadeLevel.shadeLevel(shadeLevel))
+    if shadeLevel == 0 then
+      device:emit_event(capabilities.windowShade.windowShade('closed'))
+    else
+      device:emit_event(capabilities.windowShade.windowShade('open'))
+    end
+end
+
+local function jog(driver, device, command) -- the function activated by a momentary button in the shade device titled "Jog"
   payload = {shade = {motion = "jog"}}
   sendCommand(device.preferences.hubIP, device.preferences.shadeID, payload)
 end
 
-local function calibrate() -- the function activated by a momentary button in the shade device titled "Calibrate"
+local function calibrate(driver, device, command) -- the function activated by a momentary button in the shade device titled "Calibrate"
   payload = {shade = {motion = "calibrate"}}
   sendCommand(device.preferences.hubIP, device.preferences.shadeID, payload)
+  updatePosition(device)
 end
 
-local function setShadeLevel(shadeLevel) -- the function activated by a dimmer in the shade device titled "Position"
-  positionN = (65535*shadeLevel/100)//1
+local function setShadeLevel(driver, device, command) -- the function activated by a dimmer in the shade device titled "Position"
+  log.info("Setting shade position...")
+  shadeLevel = command.args.shadeLevel
+  positionN = math.floor(65535*shadeLevel/100)
   payload = {shade = {positions = {posKind1 = 1, position1 = positionN}}}
   sendCommand(device.preferences.hubIP, device.preferences.shadeID, payload)
   device:emit_event(capabilities.windowShadeLevel.shadeLevel(shadeLevel))
@@ -78,12 +106,22 @@ local function setShadeLevel(shadeLevel) -- the function activated by a dimmer i
   end
 end
 
-local function open() -- the function activated by selecting Open in the shade device
-  setShadeLevel(100)
+local function open(driver, device, command) -- the function activated by selecting Open in the shade device
+  payload = {shade = {positions = {posKind1 = 1, position1 = 65535}}}
+  sendCommand(device.preferences.hubIP, device.preferences.shadeID, payload)
+  device:emit_event(capabilities.windowShadeLevel.shadeLevel(100))
 end
 
-local function close() -- the function activated by selecting Close in the shade device
-  setShadeLevel(0)
+local function close(driver, device, command) -- the function activated by selecting Close in the shade device
+  payload = {shade = {positions = {posKind1 = 1, position1 = 0}}}
+  sendCommand(device.preferences.hubIP, device.preferences.shadeID, payload)
+  device:emit_event(capabilities.windowShadeLevel.shadeLevel(0))
+end
+
+local function pause(driver, device, command) -- the function activated by selecting Pause in the shade device
+  payload = {shade = {motion = "stop"}}
+  sendCommand(device.preferences.hubIP, device.preferences.shadeID, payload)
+  updatePosition(device)
 end
 
 local function create_device(driver)
@@ -114,13 +152,13 @@ end
 
 local function handle_calibrate(driver, device, command)
 
-  calibrate()
+  calibrate(driver, device, command)
 
 end
 
 local function handle_jog(driver, device, command)
 
-  jog()
+  jog(driver, device, command)
 
 end
 
@@ -221,6 +259,14 @@ thisDriver = Driver("thisDriver", {
   },
   
   capability_handlers = {
+    [capabilities.windowShade.ID] = {
+      [capabilities.windowShade.commands.open.NAME] = open,
+      [capabilities.windowShade.commands.close.NAME] = close,
+      [capabilities.windowShade.commands.pause.NAME] = pause,
+    },
+    [capabilities.windowShadeLevel.ID] = {
+      [capabilities.windowShadeLevel.commands.setShadeLevel.NAME] = setShadeLevel,
+    },
     [cap_calibrate.ID] = {
       [cap_calibrate.commands.push.NAME] = handle_calibrate,
     },
