@@ -11,10 +11,9 @@ components:
   - id: clevercenter17261.jog
     version: 1
   - id: partyvoice23922.createanother
-  categories:
-    - name: Others
-metadata:
-  mnmn: SmartThingsCommunity
+    version: 1
+    categories:
+      - name: Others
 preferences:
   - title: "PowerView Hub IP Address"
     name: hubIP
